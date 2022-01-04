@@ -2,6 +2,9 @@ import requests
 from msal import PublicClientApplication
 import os
 
+class DoesntExistException(Exception):
+    pass
+
 c = open("CLIENT_ID")
 g = open("TENANT_ID")
 CLIENT_ID = c.read().replace("\n", "")
@@ -11,14 +14,13 @@ app = PublicClientApplication(
     CLIENT_ID,
     authority=f"https://login.microsoftonline.com/{TENANT_ID}")
 
-USERNAME = input("username (including domain) : ")
-PASSWORD =  input("Password : ")
+USERNAME = input("email : ")
+PASSWORD = input("password : ")
 SCOPES = ["Files.ReadWrite.All", "Sites.ReadWrite.All"]
 
 API_URL = "https://graph.microsoft.com/v1.0/me/drive/root:/EncUpload"
 
 token = app.acquire_token_by_username_password(USERNAME,PASSWORD,SCOPES)
-
 header = {"Authorization" : f"Bearer {token['access_token']}"}
 
 def upload_file(file_path, remote_path=None):
@@ -36,7 +38,7 @@ def upload_file(file_path, remote_path=None):
         requests.put(f"{API_URL}/{remote_path}:/content", data=file_data, headers=header)
     else:
         url = requests.post(f"{API_URL}/{remote_path}:/createUploadSession", headers=header).json()["uploadUrl"]
-        chunk_size = 4000000
+        chunk_size = 4194304
         chunks_amount = file_size // chunk_size
         chunk_number = 0
         while chunk_number <= chunks_amount:
@@ -63,7 +65,7 @@ def download_file(remote_path, file_path=None):
     r = requests.get(f"{API_URL}/{remote_path}", headers=header)
     j = r.json()
     if "error" in j.keys():
-        raise Exception("File Doesn't exist")
+        raise DoesntExistException("File Doesn't exist")
         # we will assume this means that the file doesn't exisst
         # there is a chance that you're just being late limited but yk
     r = requests.get(f"{API_URL}/{remote_path}:/content", headers=header)

@@ -8,7 +8,11 @@ class MyWidget(QtWidgets.QWidget):
         super().__init__()
 
         self.filelist = []
-        self.key = high_level.key_from_password("gigachad")
+        passw, accept = QtWidgets.QInputDialog.getText(self, "Password", "")
+        if not accept:
+            exit()
+        
+        self.key = high_level.key_from_password(passw)
 
         self.list = QtWidgets.QListWidget()
 
@@ -38,12 +42,16 @@ class MyWidget(QtWidgets.QWidget):
     def fetch_filelist(self):
         try:
             high_level.download_file("file_index_table", self.key)
-        except Exception:
+        except high_level.pyfile.DoesntExistException:
             os.system("echo '#' > file_index_table")
             high_level.upload_file("file_index_table", self.key)
             os.remove("file_index_table")
             os.remove("file_index_table.jfe")
             high_level.download_file("file_index_table", self.key)
+        except high_level.fernet.InvalidToken:
+            x = QtWidgets.QMessageBox()
+            x.setText("Wrong Password")
+            x.exec()
         f = open("downloads/file_index_table.decrypted")
         raw = f.read()
         f.close()
@@ -53,8 +61,8 @@ class MyWidget(QtWidgets.QWidget):
         for line in raw.split("\n"):
             if line.startswith("#") or line.startswith("\n") or line.startswith(" "):
                 continue
-            if len(line.split(",")) == 2:
-                liste.append(line.split(","))
+            if len(line.split("#.öüä.#")) == 2:
+                liste.append(line.split("#.öüä.#"))
         return liste
 
     def update_filelist(self):
