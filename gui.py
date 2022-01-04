@@ -69,9 +69,12 @@ class MyWidget(QtWidgets.QWidget):
 
     def uploadFile(self):
         path, selector = QtWidgets.QFileDialog.getOpenFileName(self, "based", "")
-        key = high_level.key_from_password("default")
+        passw, accept = QtWidgets.QInputDialog.getText(self, "Password", "")
+        if not accept:
+            return
+        key = high_level.key_from_password(passw)
         high_level.upload_file(path, key)
-        self.addEntry(os.path.basename(path), "default")
+        self.addEntry(os.path.basename(path), passw)
         os.remove(path + ".jfe")
         self.update_filelist()
 
