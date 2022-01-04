@@ -13,6 +13,7 @@ class MyWidget(QtWidgets.QWidget):
         self.list = QtWidgets.QListWidget()
 
         self.info = QtWidgets.QLabel("Test")
+        self.upload_button = QtWidgets.QPushButton("Upload")
         self.download_button = QtWidgets.QPushButton("Download")
 
         self.left_side = QtWidgets.QVBoxLayout()
@@ -25,15 +26,24 @@ class MyWidget(QtWidgets.QWidget):
 
         self.left_side.addWidget(self.list)
         self.right_side.addWidget(self.info)
+        self.right_side.addWidget(self.upload_button)
         self.right_side.addWidget(self.download_button)
 
         self.update_filelist()
 
+        self.upload_button.clicked.connect(self.uploadFile)
         self.download_button.clicked.connect(self.saveFile)
 
 
     def fetch_filelist(self):
-        high_level.download_file("file_index_table", self.key)
+        try:
+            high_level.download_file("file_index_table", self.key)
+        except Exception:
+            os.system("echo '#' > file_index_table")
+            high_level.upload_file("file_index_table", self.key)
+            os.remove("file_index_table")
+            os.remove("file_index_table.jfe")
+            high_level.download_file("file_index_table", self.key)
         f = open("downloads/file_index_table.decrypted")
         raw = f.read()
         f.close()
@@ -41,9 +51,10 @@ class MyWidget(QtWidgets.QWidget):
         liste = []
         raw = raw.removesuffix("\n")
         for line in raw.split("\n"):
-            if line.startswith("#"):
+            if line.startswith("#") or line.startswith("\n") or line.startswith(" "):
                 continue
-            liste.append(line.split(","))
+            if len(line.split(",")) == 2:
+                liste.append(line.split(","))
         return liste
 
     def update_filelist(self):
@@ -55,6 +66,38 @@ class MyWidget(QtWidgets.QWidget):
             item = QtWidgets.QListWidgetItem(name)
             item.passw = passw
             self.list.addItem(item)
+
+    def uploadFile(self):
+        path, selector = QtWidgets.QFileDialog.getOpenFileName(self, "based", "")
+        key = high_level.key_from_password("default")
+        high_level.upload_file(path, key)
+        self.addEntry(os.path.basename(path), "default")
+        os.remove(path + ".jfe")
+        self.update_filelist()
+
+    def addEntry(self, name, passw):
+        high_level.download_file("file_index_table", self.key)
+        os.rename("downloads/file_index_table.decrypted", "downloads/file_index_table")
+        f = open("downloads/file_index_table")
+        data = f.read()
+        new_data = ""
+        f.close()
+        if name in data:
+            for line in data.split("\n"):
+                if line.startswith(name):
+                    new_data += f"{name},{passw}\n"
+                else:
+                    new_data += line + "\n"
+        else:
+            new_data = data
+            new_data += f"\n{name},{passw}"
+
+        f = open("downloads/file_index_table", "w")
+        f.write(new_data)
+        f.close()
+        high_level.upload_file("downloads/file_index_table", self.key)
+        os.remove("downloads/file_index_table")
+        os.remove("downloads/file_index_table.jfe")
 
     def saveFile(self):
         file_name = self.list.currentItem().text()
@@ -72,3 +115,4 @@ if __name__ == "__main__":
     widget.show()
 
     sys.exit(app.exec())
+
